@@ -1,0 +1,98 @@
+<?php
+
+const PHONE_CITY_MAP = [
+    'Moscow' => '8-495-DIGITS',
+    'St Petersburg' => '8-812-DIGITS',
+    'Base' => '8-800-DIGITS',
+];
+
+const REGION_CITY_MAP = [
+    'MOS' => 'Moscow',
+    'SPE' => 'St Petersburg',
+];
+
+function printTdValue(string $value)
+{
+    echo '<td>' . $value . '</td>';
+}
+
+function getPhone(array $ipInfo): string
+{
+    $result = PHONE_CITY_MAP['Base'];
+
+    if (empty($ipInfo)) {
+        return $result;
+    }
+
+    ['countryCode' => $countryCode, 'region' => $region] = $ipInfo;
+
+    if ($countryCode !== 'RU') {
+        return $result;
+    }
+
+    $companyCity = REGION_CITY_MAP[$region] ?? 'Base';
+
+    return PHONE_CITY_MAP[$companyCity] ?? $result;
+}
+
+function getInfoFromIpApi(): array
+{
+    $url = "http://ip-api.com/json/";
+    return json_decode(file_get_contents($url) ?: '', true) ?? [];
+}
+
+function getIpAddressFromRequest()
+{
+    if (isset($_SERVER["HTTPS"]) && $_SERVER["HTTPS"] == "on") {
+        $ipAddress = $_SERVER['REMOTE_ADDR'];
+    } elseif (!empty($_SERVER["HTTP_X_FORWARDED_FOR"])) {
+        $ipAddress = $_SERVER['HTTP_X_FORWARDED_FOR'];
+    } else {
+        $ipAddress = $_SERVER['REMOTE_ADDR'];
+    }
+
+    return $ipAddress;
+}
+
+$ipInfo = getInfoFromIpApi();
+$phone = getPhone($ipInfo);
+
+/**
+ * Примечания:
+ * 1) Альтернатива, если ip-api.com недоступен
+ * - подключаем библиотеку GeoIP2
+ * - парсим IP из $_SERVER в getIpAddressFromRequest()
+ * - через GeoIP2 получаем название города
+ * - а дальше получаем телефон по городу
+ *
+ * 2) Также вместо мэппинга "город-телефон" стоит использовать БД для удобства расширения списка телефонов
+ */
+?>
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <title>Контакты</title>
+</head>
+<body>
+<div style="position: relative; top: 10px; left: 10px;"><?= $phone ?></div>
+<h1>Контактные данные</h1>
+<table>
+    <tr>
+        <th>Телефон</th>
+        <th>Город</th>
+        <th>IP</th>
+    </tr>
+    <tr>
+    <?php
+        printTdValue($phone);
+        printTdValue($ipInfo['city'] ?? '–');
+        printTdValue($ipInfo['query'] ?? '–');
+    ?>
+    </tr>
+</table>
+</body>
+<footer>
+    <div style="position: absolute; bottom: 10px; left: 10px;"><?= $phone ?></div>
+</footer>
+</html>
